@@ -1,14 +1,15 @@
 """Prints every stage of the pipeline: original text, secured text, LLM answer, index file and Databunker tokens.
 
-    python examples/pipeline.py              # fake LLM, no API key needed
-    python examples/pipeline.py --llm claude # real Claude
+    python examples/pipeline.py                # Claude if ANTHROPIC_API_KEY is set, else an emulated LLM response
+    python examples/pipeline.py --llm claude   # always Claude
+    python examples/pipeline.py --llm emulated # no model is called (as in CI)
 """
 import argparse
 import json
 import time
 import uuid
 
-from chat import claude_llm, fake_llm
+from chat import EMULATED_NOTE, pick_llm
 from newmean_pii import create_redactor
 
 from databunker_vault import DatabunkerClient, DatabunkerVaultStore
@@ -43,17 +44,18 @@ def show_tokens(client, entries, started):
 
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument("--llm", choices=["fake", "claude"], default="fake")
+    p.add_argument("--llm", choices=["auto", "claude", "emulated"], default="auto")
     p.add_argument("--session", default=f"pipeline-{uuid.uuid4().hex[:8]}")
     p.add_argument("--keep", action="store_true", help="keep the index file in Databunker afterwards")
     args = p.parse_args()
-    llm = claude_llm if args.llm == "claude" else fake_llm
+    llm, emulated = pick_llm(args.llm)
 
     client = DatabunkerClient()
     redactor = create_redactor(size="medium")
     history = []
     started = int(time.time())
-    print(f"session {args.session}, LLM {args.llm}, Databunker {client.url}")
+    print(f"session {args.session}, Databunker {client.url}")
+    print(f"LLM: {EMULATED_NOTE if emulated else 'claude-opus-5-5'}")
 
     for i, text in enumerate(TURNS, 1):
         print(f"\n{'═' * 78}\nTURN {i}")
@@ -73,7 +75,7 @@ def main():
         answer_masked = llm([{"role": m["role"], "content": m["masked"]} for m in history])
         answer = vault.restore(answer_masked)
         history.append({"role": "assistant", "content": answer, "masked": answer_masked})
-        section("3. LLM answer")
+        section("3. LLM answer (emulated, no model called)" if emulated else "3. LLM answer (claude-opus-5-5)")
         print(f"  raw      : {answer_masked}")
         print(f"  restored : {answer}")
 

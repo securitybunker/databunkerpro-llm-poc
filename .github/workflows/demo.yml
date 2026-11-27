@@ -49,9 +49,10 @@ jobs:
       - name: Pipeline demo
         working-directory: python
         run: |
-          python examples/pipeline.py | tee pipeline.txt
+          python examples/pipeline.py --llm emulated | tee pipeline.txt
           {
-            echo '### Pipeline demo (fake LLM)'
+            echo '### Pipeline demo'
+            echo 'The LLM answer is **emulated**: no model is called in CI, the reply repeats the placeholders it received.'
             echo '```text'
             cat pipeline.txt
             echo '```'

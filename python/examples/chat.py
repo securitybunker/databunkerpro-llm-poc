@@ -1,7 +1,8 @@
 """Multi-turn chat where the LLM never sees PII and the vault lives in Databunker Pro.
 
-    python examples/chat.py              # fake LLM, no API key needed
-    python examples/chat.py --llm claude # real Claude (ANTHROPIC_API_KEY or `ant auth login`)
+    python examples/chat.py                # Claude if ANTHROPIC_API_KEY is set, else an emulated LLM response
+    python examples/chat.py --llm claude   # always Claude
+    python examples/chat.py --llm emulated # no model is called (as in CI)
 
 Every turn starts from scratch (new store, new vault), as if the app had restarted, so the
 placeholders survive only because the vault is loaded back from Databunker.
@@ -28,7 +29,11 @@ TURNS = [
 ]
 
 
-def fake_llm(messages):
+EMULATED_NOTE = "emulated LLM response: no model is called; the reply repeats the placeholders it received"
+
+
+def emulated_llm(messages):
+    """Stands in for a model where none is available: answers with the placeholders of the last message."""
     tags = list(dict.fromkeys(vault_tags(messages[-1]["content"])))
     return f"Noted, I'll follow up with {', '.join(tags)}." if tags else "Noted."
 
@@ -50,20 +55,29 @@ def claude_llm(messages):
     return "".join(b.text for b in response.content if b.type == "text")
 
 
+def pick_llm(choice):
+    """(function, is_emulated) for --llm auto|claude|emulated; auto uses Claude when an API key is set."""
+    if choice == "auto":
+        choice = "claude" if os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN") else "emulated"
+    return (claude_llm, False) if choice == "claude" else (emulated_llm, True)
+
+
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument("--llm", choices=["fake", "claude"], default="fake")
+    p.add_argument("--llm", choices=["auto", "claude", "emulated"], default="auto")
     p.add_argument("--session", default=f"demo-{uuid.uuid4().hex[:8]}")
     p.add_argument("--keep", action="store_true", help="keep the vault file in Databunker afterwards")
     args = p.parse_args()
-    llm = claude_llm if args.llm == "claude" else fake_llm
+    llm, emulated = pick_llm(args.llm)
+    said = "LLM said (emulated)" if emulated else "LLM said"
 
     client = DatabunkerClient()
     redactor = create_redactor(size="medium")
     # the app's own chat history; assistant turns also keep what the LLM wrote, which holds no PII
     history = []
 
-    print(f"session {args.session}, LLM {args.llm}, Databunker {client.url}\n")
+    print(f"session {args.session}, Databunker {client.url}")
+    print(f"LLM: {EMULATED_NOTE if emulated else 'claude-opus-5-5'}\n")
     for i, text in enumerate(TURNS, 1):
         store = DatabunkerVaultStore(client, args.session, app="chat-demo")
         vault = store.load()
@@ -81,10 +95,11 @@ def main():
         store.save(vault)
 
         print(f"── turn {i} (vault loaded from Databunker: {loaded} values, saved: {len(vault)}) ──")
-        print(f"user      : {text}")
-        print(f"LLM saw   : {masked[-1]['content']}")
-        print(f"LLM said  : {answer_masked}")
-        print(f"user sees : {answer}\n")
+        w = len(said)
+        print(f"{'user':<{w}} : {text}")
+        print(f"{'LLM saw':<{w}} : {masked[-1]['content']}")
+        print(f"{said:<{w}} : {answer_masked}")
+        print(f"{'user sees':<{w}} : {answer}\n")
 
     print(f"Databunker file: {store.filename}")
     if not args.keep:
