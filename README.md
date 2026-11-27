@@ -130,6 +130,7 @@ pip install -e ".[example,test]"
 
 python examples/chat.py                # fake LLM, no API key
 python examples/chat.py --llm claude   # Claude (ANTHROPIC_API_KEY)
+python examples/pipeline.py            # every stage: original, secured, LLM answer, index file, tokens
 pytest -q                              # integration tests against the demo instance
 ```
 
@@ -186,6 +187,7 @@ store.delete()                                         # when the conversation i
 python/databunker_vault/client.py   the Databunker Pro calls it needs, on the databunkerpro SDK
 python/databunker_vault/store.py    DatabunkerVaultStore: load / save / delete
 python/examples/chat.py             three turns, each starting from a fresh process state
+python/examples/pipeline.py         two turns, printing every stage and what Databunker stores
 python/tests/test_store.py          integration tests
 ```
 

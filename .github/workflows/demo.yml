@@ -1,0 +1,58 @@
+name: demo
+
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  pipeline:
+    runs-on: ubuntu-latest
+    env:
+      DATABUNKER_URL: http://localhost:3000
+      DATABUNKER_TOKEN: DEMO
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+
+      - name: Start Databunker Pro (demo mode)
+        run: |
+          docker run -d -p 3000:3000 --name databunkerpro securitybunker/databunkerpro:latest demo
+          for i in $(seq 1 60); do
+            curl -s -X POST "$DATABUNKER_URL/v2/UserGet" -H "X-Bunker-Token: DEMO" \
+              -H "Content-Type: application/json" -d '{"mode":"login","identity":"ready"}' | grep -q status && exit 0
+            sleep 1
+          done
+          docker logs databunkerpro
+          exit 1
+
+      - name: Cache newmean-pii models
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/newmean-pii
+          key: newmean-pii-models-${{ hashFiles('python/pyproject.toml') }}
+
+      - name: Install
+        run: pip install -e "python[test,example]"
+
+      - name: Tests
+        working-directory: python
+        run: pytest -q
+
+      - name: Pipeline demo
+        working-directory: python
+        run: |
+          python examples/pipeline.py | tee pipeline.txt
+          {
+            echo '### Pipeline demo (fake LLM)'
+            echo '```text'
+            cat pipeline.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
