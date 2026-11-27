@@ -128,11 +128,15 @@ docker run -p 3000:3000 -d --rm --name databunkerpro securitybunker/databunkerpr
 cd python
 pip install -e ".[example,test]"
 
-python examples/chat.py                # fake LLM, no API key
-python examples/chat.py --llm claude   # Claude (ANTHROPIC_API_KEY)
+python examples/chat.py                # Claude if ANTHROPIC_API_KEY is set, else an emulated LLM response
 python examples/pipeline.py            # every stage: original, secured, LLM answer, index file, tokens
+python examples/pipeline.py --llm emulated   # no model is called: the reply repeats the placeholders it got
 pytest -q                              # integration tests against the demo instance
 ```
+
+Without an API key (and in CI) the LLM answer is **emulated**: no model is called, and the reply just repeats
+the placeholders it received (`Noted, I'll follow up with [PERSON_1], [PHONE_1].`). That is enough to show the round
+trip, masking, restoring and storing, but not how a real model handles placeholders; use `--llm claude` for that.
 
 `DATABUNKER_URL` (default `http://localhost:3000`), `DATABUNKER_TOKEN` (default `DEMO`) and `DATABUNKER_TENANT`
 (multi-tenant deployments only) point it at another instance. To reuse a client you already have, pass it in:
