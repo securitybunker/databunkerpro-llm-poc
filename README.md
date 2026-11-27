@@ -11,7 +11,8 @@ keeps a small index file that maps its placeholders to those tokens. The LLM see
 sees only placeholders and token uuids, and the real values exist only inside Databunker Pro.
 
 No changes to newmean-pii or Databunker Pro are needed: it uses newmean-pii's public `Vault(state)` /
-`vault.to_json()` and Databunker Pro's token and file APIs.
+`vault.to_json()` and Databunker Pro's token and file APIs through the official
+[`databunkerpro`](https://pypi.org/project/databunkerpro/) Python SDK (0.1.9 or later).
 
 ## Architecture
 
@@ -132,8 +133,9 @@ python examples/chat.py --llm claude   # Claude (ANTHROPIC_API_KEY)
 pytest -q                              # integration tests against the demo instance
 ```
 
-`DATABUNKER_URL` (default `http://localhost:3000`) and `DATABUNKER_TOKEN` (default `DEMO`) point it at another
-instance.
+`DATABUNKER_URL` (default `http://localhost:3000`), `DATABUNKER_TOKEN` (default `DEMO`) and `DATABUNKER_TENANT`
+(multi-tenant deployments only) point it at another instance. To reuse a client you already have, pass it in:
+`DatabunkerClient(api=DatabunkerproAPI(...))`.
 
 ## Usage
 
@@ -170,6 +172,9 @@ store.delete()                                         # when the conversation i
 - **Each save is create + delete.** Databunker Pro has no file update call. A crash between the two leaves an extra
   copy; `load` reads the newest, and `delete()` removes every copy.
 - **One writer per session.** Two processes saving the same session at once: the last save wins.
+- **newmean-pii upgrades.** The store relies on newmean-pii's `Vault(state)` / `to_json()` format, and newmean-pii
+  minor releases have changed behaviour before. Each session file records the newmean-pii version that wrote it;
+  run the tests before moving to a new minor release.
 - **Replays are not kept.** newmean-pii's record of the model's own answers is keyed by restored text (PII), so it is
   left out. The app should resend the model's earlier answers as the model wrote them, as `examples/chat.py` does.
 - **Token type.** Every value is a `string` token; card numbers are not format-preserving `creditcard` tokens.
@@ -178,7 +183,7 @@ store.delete()                                         # when the conversation i
 ## Layout
 
 ```
-python/databunker_vault/client.py   Databunker Pro HTTP calls (users, tokens, files)
+python/databunker_vault/client.py   the Databunker Pro calls it needs, on the databunkerpro SDK
 python/databunker_vault/store.py    DatabunkerVaultStore: load / save / delete
 python/examples/chat.py             three turns, each starting from a fresh process state
 python/tests/test_store.py          integration tests

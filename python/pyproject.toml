@@ -6,9 +6,9 @@ build-backend = "setuptools.build_meta"
 name = "databunkerpro-llm-poc"
 version = "0.1.0"
 description = "PoC: keep newmean-pii vaults encrypted in Databunker Pro"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license = "MIT"
-dependencies = ["newmean-pii==1.7.2"]
+dependencies = ["newmean-pii>=1.7.2", "databunkerpro>=0.1.9"]
 
 [project.optional-dependencies]
 example = ["anthropic"]
