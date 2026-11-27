@@ -172,6 +172,9 @@ store.delete()                                         # when the conversation i
 - **Each save is create + delete.** Databunker Pro has no file update call. A crash between the two leaves an extra
   copy; `load` reads the newest, and `delete()` removes every copy.
 - **One writer per session.** Two processes saving the same session at once: the last save wins.
+- **newmean-pii upgrades.** The store relies on newmean-pii's `Vault(state)` / `to_json()` format, and newmean-pii
+  minor releases have changed behaviour before. Each session file records the newmean-pii version that wrote it;
+  run the tests before moving to a new minor release.
 - **Replays are not kept.** newmean-pii's record of the model's own answers is keyed by restored text (PII), so it is
   left out. The app should resend the model's earlier answers as the model wrote them, as `examples/chat.py` does.
 - **Token type.** Every value is a `string` token; card numbers are not format-preserving `creditcard` tokens.
