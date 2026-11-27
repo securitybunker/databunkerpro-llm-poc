@@ -130,7 +130,7 @@ class DatabunkerVaultStore:
         """Removes the session file (every copy). Tokens stay: other sessions may share them, and they expire on their own."""
         token = self.user_token
         n = 0
-        for f in self.client.file_list(token):
+        for f in self.client.file_list(token, tag=TAG):
             if f.get("filename") == self.filename:
                 self.client.file_delete(token, f["fileuuid"])
                 n += 1
