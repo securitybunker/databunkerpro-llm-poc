@@ -129,7 +129,7 @@ cd python
 pip install -e ".[example,test]"
 
 python examples/chat.py                # Claude if ANTHROPIC_API_KEY is set, else an emulated LLM response
-python examples/pipeline.py            # every stage: original, secured, LLM answer, index file, tokens
+python examples/pipeline.py            # every stage: original, PII, masked, LLM answer, index, tokens
 python examples/pipeline.py --llm emulated   # no model is called: the reply repeats the placeholders it got
 pytest -q                              # integration tests against the demo instance
 ```

@@ -1,4 +1,4 @@
-"""Prints every stage of the pipeline: original text, secured text, LLM answer, index file and Databunker tokens.
+"""Prints every stage of the pipeline: original text, detected PII, masked text, LLM answer, index file and Databunker tokens.
 
     python examples/pipeline.py                # Claude if ANTHROPIC_API_KEY is set, else an emulated LLM response
     python examples/pipeline.py --llm claude   # always Claude
@@ -66,25 +66,29 @@ def main():
         print(text)
 
         result = redactor.redact(text, vault=vault)
-        section("2. secured text (sent to the LLM)")
+        tags = {e.value: e.tag for e in vault.entries()}
+        section("2. PII detected")
         for s in result.spans:
-            print(f"  found {s.label:<10} {text[s.start:s.end]!r}  ({s.source})")
+            value = text[s.start:s.end]
+            print(f"  {s.label:<8} {value!r:<26} → {tags.get(value, '?')}")
+
+        section("3. masked text sent to the LLM")
         print(result.text)
 
         history.append({"role": "user", "content": text, "masked": result.text})
         answer_masked = llm([{"role": m["role"], "content": m["masked"]} for m in history])
         answer = vault.restore(answer_masked)
         history.append({"role": "assistant", "content": answer, "masked": answer_masked})
-        section("3. LLM answer (emulated, no model called)" if emulated else "3. LLM answer (claude-opus-5-5)")
+        section("4. LLM answer (emulated, no model called)" if emulated else "4. LLM answer (claude-opus-5-5)")
         print(f"  raw      : {answer_masked}")
         print(f"  restored : {answer}")
 
         store.save(vault)
         index = json.loads(client.file_get(store.user_token, store.filename)["filedata"])
-        section(f"4. index file in Databunker ({store.filename[:40]}...)")
+        section(f"5. index file in Databunker ({store.filename[:40]}...)")
         print(json.dumps(index, indent=2))
 
-        section("5. tokens in Databunker")
+        section("6. tokens in Databunker")
         show_tokens(client, index["entries"], started)
 
     if not args.keep:
